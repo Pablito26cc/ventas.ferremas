@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Integración WebPay Transbank - Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); padding: 20px; }
+    .header { display: flex; justify-content: space-between; align-items: center; }
+    .logo-box { border: 2px solid red; padding: 5px 15px; display: flex; align-items: center; justify-content: center; }
+    .ferremas-logo { max-height: 100px; width: auto; display: block; }
+    .logo-area { display: flex; align-items: center; }
+    .webpay-logo { height: 50px; margin-left: 10px; }
+    .security-icon { height: 40px; margin-left: 10px; }
+    h1, h2 { text-align: center; color: #333; }
+    form { margin-bottom: 20px; background: #f0f0f0; padding: 15px; border-radius: 8px; }
+    label { display: block; margin: 10px 0 5px; }
+    input[type="number"], input[type="text"] { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; margin-bottom: 10px; }
+    button { background-color: #ffa800; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+    button:hover { background-color: #e69500; }
+    pre { background: white; border: 1px solid #ddd; padding: 10px; white-space: pre-wrap; word-break: break-word; }
+    .cards { display: flex; justify-content: space-around; margin-top: 20px; flex-wrap: wrap; }
+    .cards img { height: 40px; margin: 10px; }
+    .footer { text-align: center; font-size: 12px; color: #888; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo-box">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQoOp3chhE4gojRKFFyGKPNYUaCPnh6AzsUUg&s" alt="Ferremas Logo" class="ferremas-logo">
+      </div>
+      <div class="logo-area">
+        <img class="webpay-logo" src="https://static.openfintech.io/payment_methods/webpayplus/logo.svg?w=400&c=v0.59.26#w200" alt="WebPay Plus">
+        <img class="security-icon" src="https://cdn-icons-png.flaticon.com/512/3064/3064197.png" alt="Seguro">
+      </div>
+    </div>
+
+    <h1>Integración WebPay Transbank</h1>
+
+    <h2>Crear Transacción</h2>
+    <form id="createForm">
+     <label>Monto:</label>
+     <input type="number" id="amount" required>
+     <label>ID Cliente:</label>
+     <input type="number" id="customerId" required>
+     <label>Session ID:</label>
+     <input type="text" id="sessionId" required>
+     <button type="submit">Crear</button>
+    </form>
+    <pre id="createResult"></pre>
+
+
+    <div class="cards">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Mastercard-logo.png" alt="Mastercard">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/3/30/American_Express_logo.svg" alt="Amex">
+      <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNs6ZAsWMMg0GRdMPzyPJdZAqeBKs65jAKmQ&s" alt="Redcompra">
+    </div>
+
+    <div class="footer">
+      Esta transacción se está realizando sobre un sistema seguro.
+    </div>
+  </div>
+
+  <script>
+  document.getElementById('createForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const data = {
+      venta_id: null,
+      venta_monto: Number(document.getElementById('amount').value),
+      venta_cliente_id: Number(document.getElementById('customerId').value),
+      venta_detalle: [],
+      sessionId: document.getElementById('sessionId').value,
+      date: null // Puedes omitirlo si el backend lo pone automáticamente
+    };
+    try {
+      const res = await fetch('/api/sales/sas', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      const result = await res.json();
+      document.getElementById('createResult').textContent = JSON.stringify(result, null, 2);
+
+      // Si la respuesta contiene url y token, redirige automáticamente a Webpay
+      if (result.url && result.token) {
+        const webpayForm = document.createElement('form');
+        webpayForm.method = 'POST';
+        webpayForm.action = result.url;
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token_ws';
+        tokenInput.value = result.token;
+        webpayForm.appendChild(tokenInput);
+        document.body.appendChild(webpayForm);
+        webpayForm.submit();
+      }
+    } catch (err) {
+      document.getElementById('createResult').textContent = 'Error: ' + err;
+    }
+  };
+
+  document.getElementById('confirmForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const data = { token: document.getElementById('tokenConfirm').value };
+    try {
+      const res = await fetch('/api/sales/transaction/confirm', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      document.getElementById('confirmResult').textContent = await res.text();
+    } catch (err) {
+      document.getElementById('confirmResult').textContent = 'Error: ' + err;
+    }
+  };
+
+  document.getElementById('queryForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const data = { token: document.getElementById('tokenQuery').value };
+    try {
+      const res = await fetch('/api/sales/transaction/query', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      document.getElementById('queryResult').textContent = await res.text();
+    } catch (err) {
+      document.getElementById('queryResult').textContent = 'Error: ' + err;
+    }
+  };
+  </script>
+</body>
+</html>

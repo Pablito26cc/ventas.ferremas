@@ -1,0 +1,7 @@
+CREATE TABLE `sales` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `amount` INT NOT NULL,
+  `sales_date` VARCHAR(45) DEFAULT NULL,
+  `customer_id` INT DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
